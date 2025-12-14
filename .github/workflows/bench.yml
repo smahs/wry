@@ -50,7 +50,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libwebkit2gtk-4.1-dev libayatana-appindicator3-dev \
+            libwebkitgtk-6.0-dev libayatana-appindicator3-dev \
             xvfb \
             at-spi2-core
 
