@@ -27,16 +27,16 @@ fn main() -> wry::Result<()> {
     target_os = "android"
   )))]
   let (fixed, _) = {
-    use gtk::prelude::*;
+    use gtk4::{Fixed, GLArea, Overlay, prelude::*};
     use std::{cell::RefCell, rc::Rc};
     use tao::platform::unix::WindowExtUnix;
 
-    let overlay = gtk::Overlay::new();
+    let overlay = Overlay::new();
     let vbox = window.default_vbox().unwrap();
-    vbox.pack_start(&overlay, true, true, 0);
+    vbox.append(&overlay);
 
-    let gl_area = gtk::GLArea::new();
-    gl_area.set_has_alpha(true);
+    let gl_area = GLArea::new();
+    gl_area.set_property("alpha", true);
     gl_area.set_auto_render(true);
 
     struct AppState {
@@ -154,7 +154,7 @@ fn main() -> wry::Result<()> {
           state.gl.draw_arrays(glow::TRIANGLES, 0, 3);
         }
       }
-      gtk::glib::Propagation::Proceed
+      gtk4::glib::Propagation::Proceed
     });
 
     gl_area.connect_unrealize(move |gl_area| {
@@ -168,12 +168,10 @@ fn main() -> wry::Result<()> {
       }
     });
 
-    overlay.add(&gl_area);
+    overlay.set_child(Some(&gl_area));
 
-    let fixed = gtk::Fixed::new();
+    let fixed = Fixed::new();
     overlay.add_overlay(&fixed);
-
-    overlay.show_all();
     (fixed, gl_area)
   };
 

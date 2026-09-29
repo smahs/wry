@@ -2088,55 +2088,6 @@ pub struct WebView {
 }
 
 impl WebView {
-  /// Create a [`WebView`] from from a type that implements [`HasWindowHandle`].
-  /// Note that calling this directly loses
-  /// abilities to initialize scripts, add ipc handler, and many more before starting WebView. To
-  /// benefit from above features, create a [`WebViewBuilder`] instead.
-  ///
-  /// # Platform-specific:
-  ///
-  /// - **Linux**: Only X11 is supported, if you want to support Wayland too, use [`WebViewExtUnix::new_gtk`].
-  ///
-  ///   Although this methods only needs an X11 window handle, you use webkitgtk, so you still need to initialize gtk
-  ///   by callling [`gtk4::init`] and advance its loop alongside your event loop using `glib::MainContext::default().iteration(false)`.
-  ///   Checkout the [Platform Considerations](https://docs.rs/wry/latest/wry/#platform-considerations) section in the crate root documentation.
-  /// - **macOS / Windows**: The webview will auto-resize when the passed handle is resized.
-  /// - **Linux (X11)**: Unlike macOS and Windows, the webview will not auto-resize and you'll need to call [`WebView::set_bounds`] manually.
-  ///
-  /// # Panics:
-  ///
-  /// - Panics if the provided handle was not supported or invalid.
-  /// - Panics on Linux, if [`gtk4::init`] was not called in this thread.
-  pub fn new(window: &impl HasWindowHandle, attrs: WebViewAttributes) -> Result<Self> {
-    WebViewBuilder::new_with_attributes(attrs).build(window)
-  }
-
-  /// Create [`WebViewBuilder`] as a child window inside the provided [`HasWindowHandle`].
-  ///
-  /// ## Platform-specific
-  ///
-  /// - **Windows**: This will create the webview as a child window of the `parent` window.
-  /// - **macOS**: This will create the webview as a `NSView` subview of the `parent` window's
-  ///   content view.
-  /// - **Linux**: This will create the webview as a child window of the `parent` window. Only X11
-  ///   is supported. This method won't work on Wayland.
-  ///
-  ///   Although this methods only needs an X11 window handle, you use webkitgtk, so you still need to initialize gtk
-  ///   by callling [`gtk4::init`] and advance its loop alongside your event loop using `glib::MainContext::default().iteration(false)`.
-  ///   Checkout the [Platform Considerations](https://docs.rs/wry/latest/wry/#platform-considerations) section in the crate root documentation.
-  ///
-  ///   If you want to support child webviews on X11 and Wayland at the same time,
-  ///   we recommend using [`WebViewBuilderExtUnix::new_gtk`] with [`gtk4::Fixed`].
-  /// - **Android/iOS:** Unsupported.
-  ///
-  /// # Panics:
-  ///
-  /// - Panics if the provided handle was not support or invalid.
-  /// - Panics on Linux, if [`gtk4::init`] was not called in this thread.
-  pub fn new_as_child(parent: &impl HasWindowHandle, attrs: WebViewAttributes) -> Result<Self> {
-    WebViewBuilder::new_with_attributes(attrs).build_as_child(parent)
-  }
-
   /// Returns the id of this webview.
   pub fn id(&self) -> WebViewId<'_> {
     self.webview.id()

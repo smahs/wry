@@ -18,15 +18,17 @@ use std::{
   rc::Rc,
   sync::{Arc, Mutex},
 };
-use webkit6::ffi::{
-  webkit_get_major_version, webkit_get_micro_version, webkit_get_minor_version,
-  webkit_policy_decision_ignore, webkit_policy_decision_use,
-};
 use webkit6::prelude::*;
 use webkit6::{
-  AutoplayPolicy, LoadEvent, NavigationAction, NavigationPolicyDecision, NetworkProxyMode,
-  NetworkProxySettings, PolicyDecisionType, URIRequest, UserContentInjectedFrames,
-  UserContentManager, UserScript, UserScriptInjectionTime, WebView, WebsitePolicies,
+  AutoplayPolicy, GeolocationPermissionRequest, LoadEvent, NavigationAction,
+  NavigationPolicyDecision, NetworkProxyMode, NetworkProxySettings, NotificationPermissionRequest,
+  PointerLockPermissionRequest, PolicyDecisionType, URIRequest, UserContentInjectedFrames,
+  UserContentManager, UserMediaPermissionRequest, UserScript, UserScriptInjectionTime, WebView,
+  WebsitePolicies,
+  ffi::{
+    webkit_get_major_version, webkit_get_micro_version, webkit_get_minor_version,
+    webkit_policy_decision_ignore, webkit_policy_decision_use,
+  },
 };
 
 pub use web_context::WebContextImpl;
@@ -64,13 +66,15 @@ where
     navigation_action: *mut webkit6::ffi::WebKitNavigationAction,
     f: gtk4::glib::ffi::gpointer,
   ) -> *mut gtk4::ffi::GtkWidget {
-    let f: &F = &*(f as *const F);
-    // webkit6 NavigationAction methods like request() require &mut self
-    // Use from_glib_none to get an owned copy we can mutate
-    let mut action: NavigationAction = from_glib_none(navigation_action);
-    match f(&from_glib_borrow(this), &mut action) {
-      Some(widget) => widget.to_glib_full(),
-      None => std::ptr::null_mut(),
+    unsafe {
+      let f: &F = &*(f as *const F);
+      // Obtain an owned wrapper around the returned pointer so the user
+      // closure can take &mut of the NavigationAction.
+      let mut action: NavigationAction = from_glib_none(navigation_action);
+      match f(&from_glib_borrow(this), &mut action) {
+        Some(widget) => widget.to_glib_full(),
+        None => std::ptr::null_mut(),
+      }
     }
   }
 
@@ -258,9 +262,9 @@ impl InnerWebView {
           let cancellable: Option<&Cancellable> = None;
           for script in pending_scripts {
             // webkit6: evaluate_javascript replaces run_javascript
-            webview.evaluate_javascript(&script, None, None, cancellable, |result| {
+            webview.evaluate_javascript(&script, None, None, cancellable, |_result| {
               #[cfg(feature = "tracing")]
-              if let Err(error) = result {
+              if let Err(error) = _result {
                 tracing::debug!("Exception during script eval: {error}");
               }
             });
@@ -468,8 +472,7 @@ impl InnerWebView {
         };
 
         if let Some(policy) = policy_decision.dynamic_cast_ref::<NavigationPolicyDecision>() {
-          // webkit6: navigation_action() and request() require &mut self
-          if let Some(mut nav_action) = policy.navigation_action() {
+          if let Some(nav_action) = policy.navigation_action() {
             if let Some(uri_req) = nav_action.request() {
               if let Some(uri) = uri_req.uri() {
                 let allow = handler(uri.to_string());
@@ -499,12 +502,7 @@ impl InnerWebView {
           let is_audio = media_request.is_for_audio_device();
           let is_video = media_request.is_for_video_device();
 
-          #[cfg(feature = "v2_42")]
-          let is_display = media_request.is_for_display_device();
-          #[cfg(not(feature = "v2_42"))]
-          let is_display = !is_audio && !is_video;
-
-          if is_display {
+          if !is_audio && !is_video {
             // Screen sharing request
             let response = permission_handler(PermissionKind::DisplayCapture);
             return match response {
@@ -658,14 +656,12 @@ impl InnerWebView {
       #[cfg(feature = "tracing")]
       let _span = tracing::info_span!(parent: None, "wry::ipc::handle").entered();
 
-      if let Some(ipc_handler) = &ipc_handler {
-        ipc_handler(
-          Request::builder()
-            .uri(webview.uri().unwrap().to_string())
-            .body(js_value.to_string().to_string())
-            .unwrap(),
-        );
-      }
+      ipc_handler(
+        Request::builder()
+          .uri(webview.uri().unwrap().to_string())
+          .body(js_value.to_string().to_string())
+          .unwrap(),
+      );
     });
 
     // Register the handler we just connected

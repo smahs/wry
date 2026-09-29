@@ -7,7 +7,7 @@
 //! This example tests the GTK4 migration directly without depending on tao.
 //! Run with: cargo run --example gtk4_simple --features os-webview
 
-use gtk4::{glib, prelude::*, Application, ApplicationWindow, Box as GtkBox, Orientation};
+use gtk4::{Application, ApplicationWindow, Box as GtkBox, Orientation, glib, prelude::*};
 use wry::{WebViewBuilder, WebViewBuilderExtUnix};
 
 const APP_ID: &str = "org.wry.Gtk4Simple";
