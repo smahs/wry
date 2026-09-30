@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
   collections::HashMap,
   rc::Rc,
-  sync::{Arc, Mutex},
+  sync::{Arc, Mutex, OnceLock},
 };
 use webkit6::prelude::*;
 use webkit6::{
@@ -42,6 +42,7 @@ use crate::{
 use self::web_context::WebContextExt;
 
 const WEBVIEW_ID: &str = "webview_id";
+static WEBVIEW_REGISTRY: OnceLock<Mutex<HashMap<String, usize>>> = OnceLock::new();
 
 /// Connect to the WebView "create" signal with proper Option<Widget> support.
 ///
@@ -88,6 +89,26 @@ where
       )),
       Box::into_raw(f),
     )
+  }
+}
+
+/// Execute a native WebKit editing command on a registered webview.
+/// Valid commands are the `EDITING_COMMAND_*` constants exported by `webkit6`.
+pub fn execute_editing_command(view_id: &str, command: &str) {
+  if let Some(raw_as_usize) = WEBVIEW_REGISTRY
+    .get_or_init(|| Mutex::new(HashMap::new()))
+    .lock()
+    .unwrap()
+    .get(view_id)
+    .copied()
+  {
+    // SAFETY: The pointer was stored when the WebView was created on the GTK main
+    // thread and shares lifetime with the main GTK window. Do not mutate or free it.
+    unsafe {
+      let ptr = raw_as_usize as *mut webkit6::ffi::WebKitWebView;
+      let wv: webkit6::WebView = gtk4::glib::translate::from_glib_none(ptr);
+      wv.execute_editing_command(command);
+    }
   }
 }
 
@@ -233,6 +254,12 @@ impl InnerWebView {
       .map(|id| id.to_string())
       .unwrap_or_else(|| (webview.as_ptr() as isize).to_string());
     unsafe { webview.set_data(WEBVIEW_ID, id.clone()) };
+
+    WEBVIEW_REGISTRY
+      .get_or_init(|| Mutex::new(HashMap::new()))
+      .lock()
+      .unwrap()
+      .insert(id.clone(), webview.as_ptr() as usize);
 
     let w = Self {
       id,

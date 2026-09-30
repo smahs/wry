@@ -24,17 +24,18 @@ targets = [
 ]
 
 [features]
-default = ["os-webview", "x11"]
+default = ["os-webview", "x11", "linux-body"]
 serde = ["dpi/serde"]
 devtools = []
 transparent = []
 fullscreen = []
-linux-body = ["webkit6/v2_44", "os-webview"]
+linux-body = ["os-webview"]
 mac-proxy = []
 os-webview = [
   "javascriptcore6",
   "webkit6",
   "dep:gtk4",
+  "dep:gdk4",
   "soup3",
 ]
 x11 = ["x11-dl", "gdk4-x11"]
@@ -62,7 +63,7 @@ dirs = "7"
 
 [target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dev-dependencies]
 x11-dl = { version = "2.21" }
-gtk4 = "0.10"
+gtk4 = "0.11"
 
 [target."cfg(target_os = \"windows\")".dependencies]
 webview2-com = "0.39"
